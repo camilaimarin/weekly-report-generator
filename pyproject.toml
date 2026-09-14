@@ -7,7 +7,9 @@ authors = [
     { name = "Camila Itzel Marín Gómez", email = "camilaitzelmarin@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.5",
+]
 
 [project.scripts]
 weekly-report = "weekly_report:main"
