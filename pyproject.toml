@@ -1,0 +1,17 @@
+[project]
+name = "weekly-report"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Camila Itzel Marín Gómez", email = "camilaitzelmarin@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+weekly-report = "weekly_report:main"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12.0"]
+build-backend = "uv_build"
