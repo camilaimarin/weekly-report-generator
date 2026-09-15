@@ -55,3 +55,17 @@ class Metric(BaseModel):
     previous: float | None = None
     target: float | None = None
     note: str | None = None
+
+
+class CarryOver(BaseModel):
+    project: str
+    title: str
+    progress: int | None = Field(default=None, ge=0, le=100)
+    remaining: str
+
+
+class PlannedActivity(BaseModel):
+    project: str
+    title: str
+    kind: Literal["critico", "planificado", "producto"]
+    days: list[date] = Field(min_length=1)
