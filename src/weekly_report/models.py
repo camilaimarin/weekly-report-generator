@@ -21,3 +21,12 @@ class ProjectStatus(BaseModel):
     progress: int = Field(ge=0, le=100)
     milestone: str
     next_milestone: str | None = None
+
+
+class Obstacle(BaseModel):
+    project: str
+    title: str
+    impact: Literal["alto", "medio", "bajo"]
+    owner: str
+    need: str
+    blocking: bool = False
