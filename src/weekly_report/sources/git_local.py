@@ -7,7 +7,7 @@ from weekly_report.sources.base import Source
 
 FIELD_SEP = "\x1f"
 RECORD_SEP = "\x1e"
-LOG_FORMAT = "%H%x1f%aI%x1f%s%x1f%b%x1e"
+LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b%x1f"
 
 
 class GitLocalSource(Source):
@@ -26,7 +26,7 @@ class GitLocalSource(Source):
             record = record.strip("\n")
             if not record:
                 continue
-            ref, timestamp, title, body = record.split(FIELD_SEP, maxsplit=3)
+            ref, timestamp, title, body, numstat = record.split(FIELD_SEP, maxsplit=4)
             activity = Activity(
                 source=self.name,
                 project=self.project,
@@ -35,7 +35,7 @@ class GitLocalSource(Source):
                 kind="commit",
                 ref=ref,
                 body=body.strip() or None,
-                extra={"repo": self.repo_path.name},
+                extra={"repo": self.repo_path.name, **_parse_numstat(numstat)},
             )
             if start <= activity.timestamp < end:
                 activities.append(activity)
@@ -47,6 +47,7 @@ class GitLocalSource(Source):
             "--all",
             "--no-merges",
             "--fixed-strings",
+            "--numstat",
             f"--since={since.isoformat()}",
             f"--format={LOG_FORMAT}",
         ]
@@ -59,3 +60,14 @@ class GitLocalSource(Source):
                 f"git log falló en {self.repo_path}: {result.stderr.strip()}"
             )
         return result.stdout
+
+
+def _parse_numstat(block: str) -> dict[str, int]:
+    added = deleted = files = 0
+    for line in block.strip().splitlines():
+        lines_added, lines_deleted, _path = line.split("\t", maxsplit=2)
+        files += 1
+        if lines_added != "-":
+            added += int(lines_added)
+            deleted += int(lines_deleted)
+    return {"lines_added": added, "lines_deleted": deleted, "files_changed": files}
