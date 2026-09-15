@@ -39,3 +39,19 @@ class DayLog(BaseModel):
     summary: str
     status: Literal["cumplido", "parcial", "bloqueado"]
     refs: list[str] = []
+
+
+class Achievement(BaseModel):
+    project: str
+    title: str
+    result: str
+    refs: list[str] = []
+
+
+class Metric(BaseModel):
+    label: str
+    value: float
+    unit: str = ""
+    previous: float | None = None
+    target: float | None = None
+    note: str | None = None
