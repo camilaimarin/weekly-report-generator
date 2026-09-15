@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, AwareDatetime, Field
@@ -30,3 +31,11 @@ class Obstacle(BaseModel):
     owner: str
     need: str
     blocking: bool = False
+
+
+class DayLog(BaseModel):
+    day: date
+    project: str
+    summary: str
+    status: Literal["cumplido", "parcial", "bloqueado"]
+    refs: list[str] = []
