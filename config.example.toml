@@ -11,8 +11,11 @@ model = "qwen3:4b"
 # Todos los correos con los que haces commits (personal, trabajo...).
 emails = ["tu@correo.com"]
 
-# Archivos generados que no cuentan en las líneas cambiadas.
-ignore_files = ["uv.lock", "package-lock.json", "*.min.js"]
+# Lo que no cuenta en las líneas cambiadas. Acepta nombres ("uv.lock"),
+# comodines ("*.min.js"), rutas ("docs/*.html") y carpetas completas
+# terminadas en "/" ("vendor/" ignora esa carpeta esté donde esté).
+# El commit sigue contando como actividad: solo no suma líneas.
+ignore_files = ["uv.lock", "package-lock.json", "*.min.js", "vendor/"]
 
 # Un bloque [[repos]] por repositorio, con el código de proyecto del reporte.
 [[repos]]

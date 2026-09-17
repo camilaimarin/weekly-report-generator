@@ -1,3 +1,4 @@
+import re
 import subprocess
 from datetime import datetime
 from fnmatch import fnmatch
@@ -9,6 +10,9 @@ from weekly_report.sources.base import Source
 FIELD_SEP = "\x1f"
 RECORD_SEP = "\x1e"
 LOG_FORMAT = "%x1e%H%x1f%aI%x1f%s%x1f%b%x1f"
+
+# git escribe los renombres como "viejo => nuevo" o "carpeta/{viejo => nuevo}/f.py"
+RENAME = re.compile(r"\{[^{}]* => ([^{}]*)\}")
 
 
 class GitLocalSource(Source):
@@ -85,5 +89,20 @@ def _parse_numstat(block: str, ignore_files: list[str]) -> dict[str, int]:
 
 
 def _is_ignored(path: str, patterns: list[str]) -> bool:
-    name = Path(path.split(" => ")[-1].rstrip("}")).name
-    return any(fnmatch(name, pattern) for pattern in patterns)
+    path = _renamed_to(path)
+    folders = path.split("/")[:-1]
+    name = path.split("/")[-1]
+    for pattern in patterns:
+        if pattern.endswith("/"):
+            if pattern.rstrip("/") in folders:
+                return True
+        elif fnmatch(name, pattern) or fnmatch(path, pattern):
+            return True
+    return False
+
+
+def _renamed_to(path: str) -> str:
+    path = RENAME.sub(r"\1", path)
+    if " => " in path:
+        path = path.split(" => ")[-1]
+    return path.replace("//", "/").strip()
