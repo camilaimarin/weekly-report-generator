@@ -5,7 +5,7 @@ from pathlib import Path
 from weekly_report.aggregate import git_metrics, summarize
 from weekly_report.cache import get_week, monday_of
 from weekly_report.config import Config, build_sources, load_config
-from weekly_report.interview import run_interview
+from weekly_report.interview import review_report, run_interview
 from weekly_report.llm import WeekDraft, draft_week, review_draft
 from weekly_report.models import Report
 from weekly_report.pdf import save_pdf
@@ -51,6 +51,8 @@ def _run(args: argparse.Namespace) -> None:
     report = run_interview(draft, stats, config, metrics, _last_report(week_start))
     _json_path(week_start).parent.mkdir(parents=True, exist_ok=True)
     _json_path(week_start).write_text(report.model_dump_json(indent=2))
+    for aviso in review_report(report):
+        print(f"  ojo: {aviso}")
     _save(report, args.pdf)
 
 

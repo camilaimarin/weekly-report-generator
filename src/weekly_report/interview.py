@@ -184,6 +184,31 @@ def run_interview(
     )
 
 
+def review_report(report: Report) -> list[str]:
+    avisos = []
+    if report.overall_status == "bloqueado" and not report.active_blockers:
+        avisos.append(
+            "la semana quedó marcada como bloqueada, pero ningún obstáculo "
+            "está marcado como que te frena"
+        )
+
+    sin_avance = [d for d in report.days if d.status == "bloqueado"]
+    if sin_avance and not report.obstacles:
+        avisos.append(
+            f"{len(sin_avance)} día(s) sin avance, pero no capturaste "
+            "ningún obstáculo que lo explique"
+        )
+
+    en_problemas = {
+        p.project for p in report.projects if p.status in ("en_riesgo", "detenido")
+    }
+    con_obstaculo = {o.project for o in report.obstacles}
+    for project in sorted(en_problemas - con_obstaculo):
+        avisos.append(f"{project} está en riesgo o detenido y no dice por qué")
+
+    return avisos
+
+
 def _ask_projects(
     stats: WeekStats, previous: Report | None = None
 ) -> list[ProjectStatus]:

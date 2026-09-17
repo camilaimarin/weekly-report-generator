@@ -6,7 +6,7 @@ from factories import TZ
 from weekly_report.aggregate import summarize
 from weekly_report.config import Config
 from weekly_report.interview import (
-    ask, ask_int, ask_percent, ask_weekdays, ask_yes_no, run_interview,
+    ask, ask_int, ask_percent, ask_weekdays, ask_yes_no, review_report, run_interview,
 )
 from weekly_report.llm import AchievementDraft, DayDraft, WeekDraft
 from weekly_report.models import ProjectStatus, Report
@@ -221,3 +221,43 @@ def test_un_dia_sin_commits_no_hereda_el_texto_del_modelo(responde, config, sema
     report = run_interview(draft, stats, config, [])
 
     assert report.days == []
+
+
+def test_avisa_si_la_semana_esta_bloqueada_sin_bloqueos():
+    report = Report(
+        author="Camila", week_start=LUNES, overall_status="bloqueado",
+        goals_done=0, goals_total=1, focus="x", summary="x",
+        projects=[ProjectStatus(project="PIPE", name="Ingesta", status="en_curso",
+                                progress=50, milestone="Hito")],
+    )
+
+    avisos = review_report(report)
+
+    assert avisos == [
+        "la semana quedó marcada como bloqueada, pero ningún obstáculo "
+        "está marcado como que te frena"
+    ]
+
+
+def test_avisa_si_un_proyecto_esta_en_riesgo_sin_explicacion():
+    report = Report(
+        author="Camila", week_start=LUNES, overall_status="en_curso",
+        goals_done=1, goals_total=1, focus="x", summary="x",
+        projects=[ProjectStatus(project="OPS", name="Clúster", status="detenido",
+                                progress=20, milestone="Hito")],
+    )
+
+    assert review_report(report) == [
+        "OPS está en riesgo o detenido y no dice por qué"
+    ]
+
+
+def test_un_reporte_coherente_no_genera_avisos():
+    report = Report(
+        author="Camila", week_start=LUNES, overall_status="en_curso",
+        goals_done=1, goals_total=1, focus="x", summary="x",
+        projects=[ProjectStatus(project="PIPE", name="Ingesta", status="en_curso",
+                                progress=50, milestone="Hito")],
+    )
+
+    assert review_report(report) == []
