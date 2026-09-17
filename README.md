@@ -1,8 +1,9 @@
 # weekly-report
 
 Genera un reporte semanal de trabajo en HTML a partir de tus commits, con los
-textos redactados por un modelo local (Ollama) y una entrevista corta que
-llena lo que git no sabe.
+textos redactados por un modelo local (Ollama). No te pregunta nada: arma el
+reporte con lo que sabe, te abre el JSON en tu editor y tú corriges lo que
+haga falta.
 
 La regla que ordena todo el proyecto: **el modelo escribe, pero nunca cuenta**.
 Los números —commits, líneas, archivos, comparación contra la semana
@@ -16,7 +17,7 @@ así que no puede inventar una métrica aunque quiera.
 fuentes → Activity → caché semanal → estadísticas ─┬→ métricas (Python)
                                                    └→ borrador (Ollama)
                                                           ↓
-                                              entrevista → Report → HTML
+                                            tu editor → Report → HTML
 ```
 
 1. **Fuentes.** Cada fuente lee un sistema y devuelve `Activity`. Hoy hay una:
@@ -30,9 +31,12 @@ fuentes → Activity → caché semanal → estadísticas ─┬→ métricas (P
    línea por día. Después se revisa lo que escribió y se avisa si mencionó un
    proyecto que no existe, un día de otra semana o un número que no está en
    los datos.
-5. **Entrevista.** Pregunta lo que ningún commit sabe: estado de cada
-   proyecto, bloqueos, qué quedó a medias, el plan de la próxima semana. Todo
-   lo que se puede proponer viene con un valor por omisión: Enter lo acepta.
+5. **Tu turno.** El reporte se arma solo: los proyectos heredan estado y
+   avance de tu reporte anterior, y el hito de esta semana se propone con el
+   que dejaste anotado como próximo. Lo que nadie puede saber —bloqueos, qué
+   quedó a medias, el plan de la semana que entra— queda vacío, y lo llenas
+   en el JSON que se abre en tu editor (`$EDITOR`). Si prefieres que te lo
+   pregunte paso a paso, está `--entrevista`.
 6. **HTML.** Una plantilla Jinja2 con nueve secciones. Las que no tienen datos
    no se pintan, y las demás se renumeran solas.
 
@@ -99,13 +103,17 @@ clonas esto en un repositorio público, revisa que sigan ignorados.
 uv run weekly-report
 ```
 
-Hace las preguntas y deja el reporte en `output/AAAA-Wnn.html`, junto con el
-`Report` en JSON.
+Lee git, pide el borrador al modelo, abre el JSON en tu editor y, al cerrarlo,
+deja el reporte en `output/AAAA-Wnn.html`.
+
+Si ya habías capturado esa semana, no se pisa: se abre lo que tenías, con los
+números de git actualizados.
 
 | Bandera | Para qué |
 |---|---|
 | `--week 2026-09-14` | Otra semana. Acepta cualquier día; calcula el lunes. |
 | `--refresh` | Relee git aunque haya caché. Útil al final de la semana. |
+| `--entrevista` | Te pregunta paso a paso en vez de abrir el editor. |
 | `--no-llm` | Sin Ollama: los textos los escribes tú. |
 | `--pdf` | Además del HTML, exporta a PDF (requiere Playwright). |
 | `--render-only` | Regenera el HTML de un reporte ya capturado, sin preguntar nada. |
@@ -152,7 +160,8 @@ src/weekly_report/
   cache.py       recolección y caché por semana
   aggregate.py   números por día y por proyecto
   llm.py         borrador con Ollama y revisión de lo que escribió
-  interview.py   las preguntas que git no puede contestar
+  assemble.py    arma el reporte sin preguntar nada
+  interview.py   las preguntas, para quien las prefiera
   render.py      HTML desde el Report
   formats.py     fechas y números en español
   cli.py         el comando

@@ -1,0 +1,106 @@
+from datetime import date
+
+from factories import TZ
+
+from weekly_report.aggregate import summarize
+from weekly_report.assemble import assemble_report
+from weekly_report.config import Config
+from weekly_report.llm import AchievementDraft, DayDraft, WeekDraft
+from weekly_report.models import Metric, ProjectStatus, Report
+
+LUNES = date(2026, 9, 14)
+JUEVES = date(2026, 9, 17)
+MIERCOLES = date(2026, 9, 16)
+
+
+def config() -> Config:
+    return Config(author="Camila", role="Ingeniería", emails=["c@example.com"])
+
+
+def draft(**cambios) -> WeekDraft:
+    base = dict(
+        focus="Clústeres",
+        focus_context="Contexto.",
+        summary="Resumen del modelo.",
+        achievements=[AchievementDraft(project="PIPE", title="Logro", result="R")],
+        days=[DayDraft(day=LUNES, project="PIPE", summary="Lo del lunes")],
+    )
+    return WeekDraft(**(base | cambios))
+
+
+def test_se_arma_un_reporte_valido_sin_preguntar_nada(semana):
+    stats = summarize(semana, TZ)
+
+    report = assemble_report(draft(), stats, config(), [])
+
+    assert report.summary == "Resumen del modelo."
+    assert [p.project for p in report.projects] == ["PIPE", "AI"]
+    assert report.days[0].summary == "Lo del lunes"
+
+
+def test_los_dias_traen_sus_refs_para_rastrear(semana):
+    stats = summarize(semana, TZ)
+
+    report = assemble_report(draft(), stats, config(), [])
+
+    assert report.days[0].refs == ["a1", "a2"]
+
+
+def test_lo_que_no_se_sabe_queda_en_blanco_no_inventado(semana):
+    stats = summarize(semana, TZ)
+
+    report = assemble_report(draft(), stats, config(), [])
+
+    assert (report.goals_done, report.goals_total) == (0, 0)
+    assert report.overall_status == "en_curso"
+    assert report.obstacles == []
+    assert report.plan == []
+    assert report.notes == []
+
+
+def test_los_proyectos_heredan_lo_de_la_semana_pasada(semana):
+    stats = summarize(semana, TZ)
+    anterior = Report(
+        author="Camila", week_start=date(2026, 9, 7), overall_status="en_curso",
+        goals_done=1, goals_total=1, focus="x", summary="x",
+        projects=[
+            ProjectStatus(project="PIPE", name="Ingesta v2", status="en_riesgo",
+                          progress=60, milestone="Lo viejo",
+                          next_milestone="Pruebas E2E"),
+        ],
+    )
+
+    report = assemble_report(draft(), stats, config(), [], anterior)
+    pipe, ai = report.projects
+
+    assert pipe.name == "Ingesta v2"
+    assert (pipe.status, pipe.progress) == ("en_riesgo", 60)
+    assert pipe.milestone == "Pruebas E2E"
+    assert (ai.name, ai.progress) == ("AI", 0)
+
+
+def test_un_logro_de_un_proyecto_que_no_existe_no_entra(semana):
+    stats = summarize(semana, TZ)
+    inventado = draft(
+        achievements=[AchievementDraft(project="FANTASMA", title="t", result="r")]
+    )
+
+    assert assemble_report(inventado, stats, config(), []).achievements == []
+
+
+def test_un_dia_sin_commits_no_entra_aunque_el_modelo_lo_redacte(semana):
+    stats = summarize(semana, TZ)
+    con_miercoles = draft(
+        days=[DayDraft(day=MIERCOLES, project="PIPE", summary="Sin commits")]
+    )
+
+    assert assemble_report(con_miercoles, stats, config(), []).days == []
+
+
+def test_las_metricas_llegan_tal_cual(semana):
+    stats = summarize(semana, TZ)
+    metrics = [Metric(label="Commits", value=3, previous=143)]
+
+    report = assemble_report(draft(), stats, config(), metrics)
+
+    assert report.metrics == metrics

@@ -1,8 +1,14 @@
 import argparse
+import os
+import shlex
+import subprocess
 from datetime import date, timedelta
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from weekly_report.aggregate import git_metrics, summarize
+from weekly_report.assemble import assemble_report
 from weekly_report.cache import get_week, monday_of
 from weekly_report.config import Config, build_sources, load_config
 from weekly_report.interview import review_report, run_interview
@@ -48,12 +54,51 @@ def _run(args: argparse.Namespace) -> None:
     metrics = git_metrics(stats, summarize(previous, config.timezone))
 
     draft = VACIO if args.no_llm else _draft(cache, stats, config)
-    report = run_interview(draft, stats, config, metrics, _last_report(week_start))
-    _json_path(week_start).parent.mkdir(parents=True, exist_ok=True)
-    _json_path(week_start).write_text(report.model_dump_json(indent=2))
+    previous = _last_report(week_start)
+
+    path = _json_path(week_start)
+    capturado = _existing(path)
+
+    if args.entrevista:
+        report = run_interview(draft, stats, config, metrics, previous)
+    elif capturado:
+        report = capturado.model_copy(update={"metrics": metrics})
+    else:
+        report = assemble_report(draft, stats, config, metrics, previous)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report.model_dump_json(indent=2))
+
+    if not args.entrevista:
+        report = _edit(path)
+
     for aviso in review_report(report):
         print(f"  ojo: {aviso}")
     _save(report, args.pdf)
+
+
+def _existing(path: Path) -> Report | None:
+    if not path.exists():
+        return None
+    print(f"Ya tenías capturada esta semana: se conserva {path}.")
+    return Report.model_validate_json(path.read_text())
+
+
+def _edit(path: Path) -> Report:
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if editor:
+        print(f"\nAbriendo {path} en {editor}. Guarda y cierra para continuar.")
+        subprocess.run([*shlex.split(editor), str(path)])
+    else:
+        print(f"\nTu reporte está en {path}.")
+        print("Edítalo y corre --render-only para volver a generar el HTML.")
+    try:
+        return Report.model_validate_json(path.read_text())
+    except ValidationError as error:
+        raise SystemExit(
+            f"\nEl JSON quedó con algo que no cuadra:\n{error}\n"
+            "Arréglalo y corre --render-only."
+        )
 
 
 def _draft(cache, stats, config: Config) -> WeekDraft:
@@ -100,6 +145,11 @@ def _parse_args() -> argparse.Namespace:
         "--refresh",
         action="store_true",
         help="Vuelve a leer git aunque ya haya caché de esa semana.",
+    )
+    parser.add_argument(
+        "--entrevista",
+        action="store_true",
+        help="Captura el reporte respondiendo preguntas, en vez de editar el JSON.",
     )
     parser.add_argument(
         "--no-llm",
