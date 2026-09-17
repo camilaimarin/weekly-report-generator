@@ -54,6 +54,7 @@ class Metric(BaseModel):
     unit: str = ""
     previous: float | None = None
     target: float | None = None
+    better: Literal["sube", "baja"] | None = None
     note: str | None = None
 
 
