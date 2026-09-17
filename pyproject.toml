@@ -1,7 +1,7 @@
 [project]
 name = "weekly-report"
 version = "0.1.0"
-description = "Add your description here"
+description = "Reporte semanal de trabajo en HTML, a partir de tus commits"
 readme = "README.md"
 authors = [
     { name = "Camila Itzel Marín Gómez", email = "camilaitzelmarin@gmail.com" }
