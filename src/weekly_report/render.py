@@ -3,19 +3,13 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from weekly_report.formats import format_day, format_number, format_week_range
 from weekly_report.models import Metric, PlannedActivity, Report
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 OUTPUT_DIR = Path("output")
 
 WEEKDAYS = 5
-
-MESES = [
-    "ene", "feb", "mar", "abr", "may", "jun",
-    "jul", "ago", "sep", "oct", "nov", "dic",
-]
-
-DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 VERDE = "#1E7B45"
 AMBAR = "#C77700"
@@ -89,16 +83,6 @@ def plan_bars(activity: PlannedActivity, days: list[date]) -> list[tuple[int, in
     return bars
 
 
-def format_day(day: date) -> str:
-    return f"{DIAS[day.weekday()]} {day.day}"
-
-
-def format_number(value: float) -> str:
-    if value == int(value):
-        return f"{int(value):,}"
-    return f"{value:,.1f}"
-
-
 def metric_value(metric: Metric) -> str:
     text = format_number(metric.value)
     if metric.target is not None:
@@ -126,15 +110,6 @@ def change_color(metric: Metric) -> str:
         return GRIS
     improved = (diff > 0) if metric.better == "sube" else (diff < 0)
     return VERDE if improved else ROJO
-
-
-def format_week_range(start: date, end: date) -> str:
-    if start.month == end.month:
-        return f"{start.day}–{end.day} {MESES[end.month - 1]} {end.year}"
-    return (
-        f"{start.day} {MESES[start.month - 1]} – "
-        f"{end.day} {MESES[end.month - 1]} {end.year}"
-    )
 
 
 def _environment() -> Environment:
