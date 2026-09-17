@@ -1,17 +1,21 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from weekly_report.models import Metric, Report
+from weekly_report.models import Metric, PlannedActivity, Report
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 OUTPUT_DIR = Path("output")
+
+WEEKDAYS = 5
 
 MESES = [
     "ene", "feb", "mar", "abr", "may", "jun",
     "jul", "ago", "sep", "oct", "nov", "dic",
 ]
+
+DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 VERDE = "#1E7B45"
 AMBAR = "#C77700"
@@ -21,7 +25,9 @@ GRIS = "#667085"
 STATUS = {
     "en_curso": ("En curso", VERDE),
     "completado": ("Completado", VERDE),
+    "cumplido": ("Cumplido", VERDE),
     "en_riesgo": ("En riesgo", AMBAR),
+    "parcial": ("Parcial", AMBAR),
     "detenido": ("Detenido", ROJO),
     "bloqueado": ("Bloqueado", ROJO),
 }
@@ -30,6 +36,12 @@ IMPACTO = {
     "alto": ("Alto", ROJO),
     "medio": ("Medio", AMBAR),
     "bajo": ("Bajo", VERDE),
+}
+
+PLAN = {
+    "critico": ("Crítico / compromiso", "#7B2233"),
+    "planificado": ("Trabajo planificado", "#C08C95"),
+    "producto": ("Producto / ceremonias", AMBAR),
 }
 
 
@@ -47,6 +59,38 @@ def impact_label(code: str) -> str:
 
 def impact_color(code: str) -> str:
     return IMPACTO[code][1]
+
+
+def plan_color(kind: str) -> str:
+    return PLAN[kind][1]
+
+
+def plan_legend() -> list[dict[str, str]]:
+    return [{"label": label, "color": color} for label, color in PLAN.values()]
+
+
+def plan_days(report: Report) -> list[date]:
+    start = report.next_week_start
+    days = {start + timedelta(days=i) for i in range(WEEKDAYS)}
+    for activity in report.plan:
+        days |= set(activity.days)
+    return sorted(days)
+
+
+def plan_bars(activity: PlannedActivity, days: list[date]) -> list[tuple[int, int]]:
+    column = {day: i + 1 for i, day in enumerate(days)}
+    bars: list[tuple[int, int]] = []
+    for day in sorted(activity.days):
+        start, span = bars[-1] if bars else (0, 0)
+        if bars and column[day] == start + span:
+            bars[-1] = (start, span + 1)
+        else:
+            bars.append((column[day], 1))
+    return bars
+
+
+def format_day(day: date) -> str:
+    return f"{DIAS[day.weekday()]} {day.day}"
 
 
 def format_number(value: float) -> str:
@@ -105,6 +149,11 @@ def _environment() -> Environment:
     env.globals["metric_value"] = metric_value
     env.globals["change_text"] = change_text
     env.globals["change_color"] = change_color
+    env.globals["plan_color"] = plan_color
+    env.globals["plan_legend"] = plan_legend
+    env.globals["plan_days"] = plan_days
+    env.globals["plan_bars"] = plan_bars
+    env.globals["format_day"] = format_day
     env.globals["format_week_range"] = format_week_range
     return env
 

@@ -100,6 +100,14 @@ class Report(BaseModel):
         return self.week_start + timedelta(days=4)
 
     @property
+    def next_week_start(self) -> date:
+        return self.week_start + timedelta(days=7)
+
+    @property
+    def next_week_number(self) -> int:
+        return self.next_week_start.isocalendar().week
+
+    @property
     def active_blockers(self) -> list[Obstacle]:
         order = ["alto", "medio", "bajo"]
         blockers = [o for o in self.obstacles if o.blocking]
@@ -121,7 +129,7 @@ class Report(BaseModel):
             if not self.week_start <= d.day <= week_last_day:
                 raise ValueError(f"el día {d.day} no es de la semana del reporte")
 
-        next_start = self.week_start + timedelta(days=7)
+        next_start = self.next_week_start
         next_last_day = next_start + timedelta(days=6)
         for p in self.plan:
             for day in p.days:
