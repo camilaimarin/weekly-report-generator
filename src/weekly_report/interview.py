@@ -1,8 +1,14 @@
+import re
+from datetime import date, timedelta
+
 from weekly_report.aggregate import WeekStats
 from weekly_report.config import Config
 from weekly_report.formats import format_day, parse_number
 from weekly_report.llm import WeekDraft
-from weekly_report.models import Achievement, DayLog, Metric, ProjectStatus, Report
+from weekly_report.models import (
+    Achievement, CarryOver, DayLog, Metric, Obstacle, PlannedActivity,
+    ProjectStatus, Report,
+)
 
 ESTADO_SEMANA = [
     ("en_curso", "En curso"),
@@ -23,6 +29,18 @@ SEMAFORO = [
     ("bloqueado", "No avanzó"),
 ]
 
+IMPACTO = [
+    ("alto", "Alto"),
+    ("medio", "Medio"),
+    ("bajo", "Bajo"),
+]
+
+TIPO_PLAN = [
+    ("critico", "Crítico / compromiso"),
+    ("planificado", "Trabajo planificado"),
+    ("producto", "Producto / ceremonias"),
+]
+
 
 def ask(pregunta: str, default: str = "", show_default: bool = True) -> str:
     sufijo = f" [{default}]" if default and show_default else ""
@@ -41,6 +59,21 @@ def ask_int(pregunta: str, default: int, maximo: int | None = None) -> int:
             print(f"  Tiene que estar entre 0 y {maximo if maximo else '∞'}.")
             continue
         return value
+
+
+def ask_percent(pregunta: str) -> int | None:
+    while True:
+        raw = ask(f"{pregunta} (Enter si no aplica)")
+        if not raw:
+            return None
+        try:
+            value = int(parse_number(raw))
+        except ValueError:
+            print("  Escribe un número o Enter.")
+            continue
+        if 0 <= value <= 100:
+            return value
+        print("  Tiene que estar entre 0 y 100.")
 
 
 def ask_choice(pregunta: str, opciones: list[tuple[str, str]], default: int = 0) -> str:
@@ -68,6 +101,25 @@ def ask_yes_no(pregunta: str, default: bool = True) -> bool:
             return False
 
 
+def ask_project(projects: list[ProjectStatus], default: int = 0) -> str:
+    opciones = [(p.project, f"{p.project} · {p.name}") for p in projects]
+    return ask_choice("Proyecto", opciones, default)
+
+
+def ask_weekdays(pregunta: str, week_start: date) -> list[date]:
+    while True:
+        raw = ask(f"{pregunta} (1=lun … 7=dom, ejemplo: 1,2 o 1 4)")
+        try:
+            numeros = sorted({int(n) for n in re.split(r"[,\s]+", raw) if n})
+        except ValueError:
+            print("  Escribe números del 1 al 7.")
+            continue
+        if not numeros or numeros[0] < 1 or numeros[-1] > 7:
+            print("  Escribe al menos un número del 1 al 7.")
+            continue
+        return [week_start + timedelta(days=n - 1) for n in numeros]
+
+
 def run_interview(
     draft: WeekDraft,
     stats: WeekStats,
@@ -90,9 +142,12 @@ def run_interview(
     summary = ask("Enter para aceptarlo, o escribe el tuyo", draft.summary, False)
 
     projects = _ask_projects(stats)
-    known = {p.project for p in projects}
-    achievements = _ask_achievements(draft, known)
-    days = _ask_days(draft, stats, known)
+    achievements = _ask_achievements(draft, {p.project for p in projects})
+    obstacles = _ask_obstacles(projects)
+    carry_over = _ask_carry_over(projects)
+    days = _ask_days(draft, stats, projects)
+    plan = _ask_plan(projects, stats.week_start + timedelta(days=7))
+    notes = _ask_notes()
 
     return Report(
         author=config.author,
@@ -106,8 +161,12 @@ def run_interview(
         summary=summary,
         projects=projects,
         achievements=achievements,
+        obstacles=obstacles,
         metrics=metrics,
+        carry_over=carry_over,
         days=days,
+        plan=plan,
+        notes=notes,
     )
 
 
@@ -153,8 +212,44 @@ def _ask_achievements(draft: WeekDraft, known: set[str]) -> list[Achievement]:
     return achievements
 
 
+def _ask_obstacles(projects: list[ProjectStatus]) -> list[Obstacle]:
+    obstacles: list[Obstacle] = []
+    while True:
+        pregunta = "¿Otro obstáculo?" if obstacles else "¿Hubo algún obstáculo?"
+        if not ask_yes_no(pregunta, False):
+            return obstacles
+        title = ask("¿Cuál es el obstáculo?")
+        obstacles.append(
+            Obstacle(
+                project=ask_project(projects),
+                title=title,
+                impact=ask_choice("Impacto", IMPACTO, 1),
+                owner=ask("¿De quién depende?"),
+                need=ask("¿Qué necesitas, y para cuándo?"),
+                blocking=ask_yes_no("¿Te está frenando ahora mismo?", False),
+            )
+        )
+
+
+def _ask_carry_over(projects: list[ProjectStatus]) -> list[CarryOver]:
+    carry_over: list[CarryOver] = []
+    while True:
+        pregunta = "¿Otro pendiente?" if carry_over else "¿Algo quedó a medias?"
+        if not ask_yes_no(pregunta, False):
+            return carry_over
+        title = ask("¿Qué quedó a medias?")
+        carry_over.append(
+            CarryOver(
+                project=ask_project(projects),
+                title=title,
+                progress=ask_percent("Avance (%)"),
+                remaining=ask("¿Qué falta y cuándo se cierra?"),
+            )
+        )
+
+
 def _ask_days(
-    draft: WeekDraft, stats: WeekStats, known: set[str]
+    draft: WeekDraft, stats: WeekStats, projects: list[ProjectStatus]
 ) -> list[DayLog]:
     propuestas = {item.day: item for item in draft.days}
     days = []
@@ -170,12 +265,11 @@ def _ask_days(
         )
         if not summary:
             continue
-        default_project = _default_project(propuesta, day, known)
-        project = ask("Proyecto", default_project)
+        sugerido = _default_project(propuesta, day, projects)
         days.append(
             DayLog(
                 day=day.day,
-                project=project,
+                project=ask_project(projects, sugerido),
                 summary=summary,
                 status=ask_choice("¿Cómo salió?", SEMAFORO),
                 refs=day.refs,
@@ -184,9 +278,37 @@ def _ask_days(
     return days
 
 
-def _default_project(propuesta, day, known: set[str]) -> str:
-    if propuesta and propuesta.project in known:
-        return propuesta.project
-    if day.main_project in known:
-        return day.main_project
-    return sorted(known)[0] if known else ""
+def _ask_plan(
+    projects: list[ProjectStatus], next_week_start: date
+) -> list[PlannedActivity]:
+    plan: list[PlannedActivity] = []
+    while True:
+        pregunta = "¿Otra actividad?" if plan else "¿Planeas algo para la otra semana?"
+        if not ask_yes_no(pregunta, False):
+            return plan
+        title = ask("¿Qué vas a hacer?")
+        plan.append(
+            PlannedActivity(
+                project=ask_project(projects),
+                title=title,
+                kind=ask_choice("¿De qué tipo es?", TIPO_PLAN, 1),
+                days=ask_weekdays("¿Qué días?", next_week_start),
+            )
+        )
+
+
+def _ask_notes() -> list[str]:
+    notes = []
+    while True:
+        nota = ask("Nota o aprendizaje (Enter para terminar)")
+        if not nota:
+            return notes
+        notes.append(nota)
+
+
+def _default_project(propuesta, day, projects: list[ProjectStatus]) -> int:
+    codes = [p.project for p in projects]
+    for candidato in (propuesta.project if propuesta else None, day.main_project):
+        if candidato in codes:
+            return codes.index(candidato)
+    return 0
