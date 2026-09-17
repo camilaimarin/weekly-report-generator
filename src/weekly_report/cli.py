@@ -8,6 +8,7 @@ from weekly_report.config import Config, build_sources, load_config
 from weekly_report.interview import run_interview
 from weekly_report.llm import WeekDraft, draft_week, review_draft
 from weekly_report.models import Report
+from weekly_report.pdf import save_pdf
 from weekly_report.render import OUTPUT_DIR, render_report, save_report
 
 VACIO = WeekDraft(focus="", focus_context="", summary="", achievements=[], days=[])
@@ -34,7 +35,7 @@ def _run(args: argparse.Namespace) -> None:
                 f"\nNo hay ningún reporte capturado en {path}.\n"
                 "Corre el comando sin --render-only para capturarlo."
             )
-        _save(Report.model_validate_json(path.read_text()))
+        _save(Report.model_validate_json(path.read_text()), args.pdf)
         return
 
     sources = build_sources(config)
@@ -50,7 +51,7 @@ def _run(args: argparse.Namespace) -> None:
     report = run_interview(draft, stats, config, metrics, _last_report(week_start))
     _json_path(week_start).parent.mkdir(parents=True, exist_ok=True)
     _json_path(week_start).write_text(report.model_dump_json(indent=2))
-    _save(report)
+    _save(report, args.pdf)
 
 
 def _draft(cache, stats, config: Config) -> WeekDraft:
@@ -67,9 +68,11 @@ def _draft(cache, stats, config: Config) -> WeekDraft:
     return draft
 
 
-def _save(report: Report) -> None:
+def _save(report: Report, pdf: bool = False) -> None:
     path = save_report(render_report(report), report.week_start)
     print(f"\nListo: {path}")
+    if pdf:
+        print(f"Listo: {save_pdf(path)}")
 
 
 def _json_path(week_start: date) -> Path:
@@ -100,6 +103,11 @@ def _parse_args() -> argparse.Namespace:
         "--no-llm",
         action="store_true",
         help="No usa Ollama: los textos los escribes tú.",
+    )
+    parser.add_argument(
+        "--pdf",
+        action="store_true",
+        help="Además del HTML, exporta el reporte a PDF.",
     )
     parser.add_argument(
         "--render-only",

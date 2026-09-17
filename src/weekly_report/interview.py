@@ -288,7 +288,7 @@ def _ask_days(
     propuestas = {item.day: item for item in draft.days}
     days = []
     for day in stats.by_day:
-        propuesta = propuestas.get(day.day)
+        propuesta = propuestas.get(day.day) if day.commits else None
         print(f"\n--- {format_day(day.day)} · {day.commits} commits ---")
         if propuesta:
             print(f"  {propuesta.summary}")

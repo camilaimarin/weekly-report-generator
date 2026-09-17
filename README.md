@@ -44,6 +44,14 @@ fuentes → Activity → caché semanal → estadísticas ─┬→ métricas (P
   descargado (por omisión se usa `qwen3:4b`). También puedes prescindir de él
   con `--no-llm` y escribir los textos tú.
 
+Para exportar a PDF hace falta además un navegador, que no se instala por
+omisión porque pesa unos 150 MB:
+
+```bash
+uv sync --extra pdf
+uv run playwright install chromium
+```
+
 ## Instalación
 
 ```bash
@@ -99,6 +107,7 @@ Hace las preguntas y deja el reporte en `output/AAAA-Wnn.html`, junto con el
 | `--week 2026-09-14` | Otra semana. Acepta cualquier día; calcula el lunes. |
 | `--refresh` | Relee git aunque haya caché. Útil al final de la semana. |
 | `--no-llm` | Sin Ollama: los textos los escribes tú. |
+| `--pdf` | Además del HTML, exporta a PDF (requiere Playwright). |
 | `--render-only` | Regenera el HTML de un reporte ya capturado, sin preguntar nada. |
 | `--config ruta.toml` | Otro archivo de configuración. |
 
@@ -151,5 +160,4 @@ src/weekly_report/
 
 ## Estado
 
-Proyecto personal, en construcción. Falta exportar a PDF, y la única fuente
-implementada es git.
+Proyecto personal, en construcción. La única fuente implementada es git.

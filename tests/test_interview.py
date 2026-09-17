@@ -200,3 +200,24 @@ def test_un_logro_de_un_proyecto_que_no_capturaste_se_omite(responde, config, se
     report = run_interview(draft, stats, config, [])
 
     assert report.achievements == []
+
+
+def test_un_dia_sin_commits_no_hereda_el_texto_del_modelo(responde, config, semana):
+    stats = summarize(semana, TZ)
+    miercoles = date(2026, 9, 16)
+    draft = WeekDraft(
+        focus="x", focus_context="x", summary="x", achievements=[],
+        days=[DayDraft(day=miercoles, project="PIPE", summary="Sin commits")],
+    )
+    responde(
+        "1", "0", "0", "", "", "",
+        "Ingesta", "1", "70", "Hito", "",
+        "Panel", "1", "50", "Hito", "",
+        "n", "n", "n",
+        "", "", "", "", "",
+        "n", "",
+    )
+
+    report = run_interview(draft, stats, config, [])
+
+    assert report.days == []

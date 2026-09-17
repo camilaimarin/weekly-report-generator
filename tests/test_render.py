@@ -145,3 +145,20 @@ def test_el_semaforo_del_dia_usa_su_color():
     dia = DayLog(day=LUNES, project="PIPE", summary="s", status="parcial")
 
     assert AMBAR in render_report(report(days=[dia]))
+
+
+def test_un_proyecto_sin_nombre_propio_no_se_repite():
+    sin_nombre = ProjectStatus(project="PIPE", name="PIPE", status="en_curso",
+                               progress=50, milestone="Hito")
+
+    html = render_report(report(projects=[sin_nombre]))
+
+    assert "PIPE · PIPE" not in html
+    assert "PIPE" in html
+
+
+def test_un_hito_vacio_se_ve_como_guion():
+    sin_hito = ProjectStatus(project="PIPE", name="Ingesta", status="en_curso",
+                             progress=50, milestone="")
+
+    assert "—" in render_report(report(projects=[sin_hito]))

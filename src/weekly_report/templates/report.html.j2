@@ -54,6 +54,13 @@
   .gantt .barra{height:16px}
   .gantt .leyenda{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding-top:10px;border-top:1px solid #F0F1F3;font-size:11px;color:#475467}
   .gantt .leyenda span.muestra{width:14px;height:10px;display:inline-block;margin-right:6px}
+  @media print{
+    @page{size:letter;margin:0.7in}
+    .page{max-width:none;margin:0;padding:0}
+    .cards,.card,.metrics,.metric,.item,.box,.gantt,tr{break-inside:avoid}
+    h2.section{break-after:avoid}
+    thead{display:table-header-group}
+  }
 </style>
 </head>
 <body>
@@ -112,10 +119,10 @@
   <tbody>
     {% for p in report.projects %}
     <tr>
-      <td style="font-weight:600">{{ p.project }} · {{ p.name }}</td>
+      <td style="font-weight:600">{{ p.project }}{% if p.name and p.name != p.project %} · {{ p.name }}{% endif %}</td>
       <td><span class="status" style="color:{{ status_color(p.status) }}"><span class="dot" style="background:{{ status_color(p.status) }}"></span>{{ status_label(p.status) }}</span></td>
       <td style="font-family:'IBM Plex Mono',monospace">{{ p.progress }} %</td>
-      <td>{{ p.milestone }}</td>
+      <td>{{ p.milestone or "—" }}</td>
       <td>{{ p.next_milestone or "—" }}</td>
     </tr>
     {% endfor %}

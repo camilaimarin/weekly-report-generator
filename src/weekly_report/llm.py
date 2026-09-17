@@ -26,8 +26,9 @@ Escribe, en JSON:
 - summary: 3 o 4 frases sobre qué avanzó y qué quedó pendiente.
 - achievements: máximo 4 logros, del más importante al menos. Cada uno con el
   código de proyecto, un título corto y el resultado concreto.
-- days: una línea por cada día que aparece arriba, con su fecha (AAAA-MM-DD),
-  el código del proyecto principal de ese día y qué se hizo."""
+- days: una línea por cada día CON commits, con su fecha (AAAA-MM-DD), el
+  código del proyecto principal de ese día y qué se hizo. Los días sin
+  commits no se redactan: se omiten."""
 
 
 class AchievementDraft(BaseModel):
