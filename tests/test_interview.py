@@ -9,6 +9,7 @@ from weekly_report.interview import (
     ask, ask_int, ask_percent, ask_weekdays, ask_yes_no, run_interview,
 )
 from weekly_report.llm import AchievementDraft, DayDraft, WeekDraft
+from weekly_report.models import ProjectStatus, Report
 
 LUNES = date(2026, 9, 14)
 PROXIMO_LUNES = date(2026, 9, 21)
@@ -103,7 +104,7 @@ def test_la_entrevista_arma_un_reporte_valido(responde, config, semana):
         "Ingesta", "1", "70", "Hito", "",     # PIPE
         "Panel", "2", "50", "Hito", "",       # AI
         "n",                                  # sin proyectos extra
-        "s", "", "",                          # acepta el logro tal cual
+        "",                                   # acepta el logro tal cual
         "n", "n",                             # sin obstáculos ni arrastre
         "", "1", "1",                         # lunes: acepta texto, proyecto, semáforo
         "", "", "", "",                       # martes a viernes: omitidos
@@ -120,6 +121,62 @@ def test_la_entrevista_arma_un_reporte_valido(responde, config, semana):
     assert report.days[0].refs == ["a1", "a2"]
     assert report.plan[0].days == [PROXIMO_LUNES, date(2026, 9, 22)]
     assert report.notes == ["Una nota."]
+
+
+def test_un_logro_se_puede_editar_sin_reescribir_los_demas(responde, config, semana):
+    stats = summarize(semana, TZ)
+    draft = WeekDraft(
+        focus="x", focus_context="x", summary="x",
+        achievements=[AchievementDraft(project="PIPE", title="Feo", result="R")],
+        days=[],
+    )
+    responde(
+        "1", "0", "0", "", "", "",
+        "Ingesta", "1", "70", "Hito", "",
+        "Panel", "1", "50", "Hito", "",
+        "n",
+        "e", "Bonito", "",                    # editar: cambia el título, deja el resto
+        "n", "n",
+        "", "", "", "", "",
+        "n",
+        "",
+    )
+
+    report = run_interview(draft, stats, config, [])
+
+    assert report.achievements[0].title == "Bonito"
+    assert report.achievements[0].result == "R"
+
+
+def test_lo_de_la_semana_pasada_se_propone(responde, config, semana):
+    stats = summarize(semana, TZ)
+    anterior = Report(
+        author="Camila", week_start=date(2026, 9, 7), overall_status="en_curso",
+        goals_done=1, goals_total=1, focus="x", summary="x",
+        projects=[
+            ProjectStatus(project="PIPE", name="Ingesta v2", status="en_riesgo",
+                          progress=60, milestone="Lo de la semana pasada",
+                          next_milestone="Pruebas E2E"),
+        ],
+    )
+    draft = WeekDraft(focus="x", focus_context="x", summary="x", achievements=[],
+                      days=[])
+    responde(
+        "1", "0", "0", "", "", "",
+        "", "", "", "",                       # PIPE: no pregunta el nombre
+        "Panel", "1", "50", "Hito", "",       # AI: no tiene base, pregunta todo
+        "n", "n", "n",
+        "", "", "", "", "",
+        "n", "",
+    )
+
+    report = run_interview(draft, stats, config, [], anterior)
+    pipe = report.projects[0]
+
+    assert pipe.name == "Ingesta v2"
+    assert pipe.status == "en_riesgo"
+    assert pipe.progress == 60
+    assert pipe.milestone == "Pruebas E2E"
 
 
 def test_un_logro_de_un_proyecto_que_no_capturaste_se_omite(responde, config, semana):

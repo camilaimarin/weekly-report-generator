@@ -89,6 +89,17 @@ def ask_choice(pregunta: str, opciones: list[tuple[str, str]], default: int = 0)
         print("  Escribe un número de la lista.")
 
 
+def ask_keep(pregunta: str) -> str:
+    while True:
+        raw = input(f"\n{pregunta} [S/n/e = editar] ").strip().lower()
+        if not raw or raw in ("s", "si", "sí"):
+            return "si"
+        if raw in ("n", "no"):
+            return "no"
+        if raw in ("e", "editar"):
+            return "editar"
+
+
 def ask_yes_no(pregunta: str, default: bool = True) -> bool:
     sufijo = "S/n" if default else "s/N"
     while True:
@@ -125,10 +136,13 @@ def run_interview(
     stats: WeekStats,
     config: Config,
     metrics: list[Metric],
+    previous: Report | None = None,
 ) -> Report:
     print(f"\n{'=' * 60}")
     print(f"Reporte de la semana del {stats.week_start}")
     print(f"{stats.commits} commits · {len(stats.by_project)} proyectos")
+    if previous:
+        print("Se proponen los datos de la semana pasada: Enter los acepta.")
     print(f"{'=' * 60}")
 
     overall_status = ask_choice("¿Cómo cerró la semana?", ESTADO_SEMANA)
@@ -141,7 +155,7 @@ def run_interview(
     print(f"\nResumen propuesto:\n  {draft.summary}")
     summary = ask("Enter para aceptarlo, o escribe el tuyo", draft.summary, False)
 
-    projects = _ask_projects(stats)
+    projects = _ask_projects(stats, previous)
     achievements = _ask_achievements(draft, {p.project for p in projects})
     obstacles = _ask_obstacles(projects)
     carry_over = _ask_carry_over(projects)
@@ -170,27 +184,44 @@ def run_interview(
     )
 
 
-def _ask_projects(stats: WeekStats) -> list[ProjectStatus]:
+def _ask_projects(
+    stats: WeekStats, previous: Report | None = None
+) -> list[ProjectStatus]:
+    anteriores = {p.project: p for p in previous.projects} if previous else {}
     projects = []
     for item in stats.by_project:
         print(f"\n--- {item.project} · {item.commits} commits ---")
-        projects.append(_ask_project(item.project))
+        projects.append(_ask_project(item.project, anteriores.get(item.project)))
     while ask_yes_no("¿Agregar un proyecto sin commits?", False):
         code = ask("Código del proyecto (PIPE, AI...)")
         if code:
-            projects.append(_ask_project(code))
+            projects.append(_ask_project(code, anteriores.get(code)))
     return projects
 
 
-def _ask_project(code: str) -> ProjectStatus:
+def _ask_project(code: str, antes: ProjectStatus | None = None) -> ProjectStatus:
+    if antes is None:
+        name = ask("Nombre del proyecto", code)
+        estado_default, avance_default, hito_default = 0, 0, ""
+    else:
+        name = antes.name
+        estado_default = _index(ESTADO_PROYECTO, antes.status)
+        avance_default = antes.progress
+        hito_default = antes.next_milestone or ""
+        print(f"  la semana pasada: {antes.progress} % · {antes.milestone}")
+
     return ProjectStatus(
         project=code,
-        name=ask("Nombre del proyecto", code),
-        status=ask_choice("Estado", ESTADO_PROYECTO),
-        progress=ask_int("Avance (%)", 0, maximo=100),
-        milestone=ask("Hito de esta semana"),
+        name=name,
+        status=ask_choice("Estado", ESTADO_PROYECTO, estado_default),
+        progress=ask_int("Avance (%)", avance_default, maximo=100),
+        milestone=ask("Hito de esta semana", hito_default),
         next_milestone=ask("Próximo hito (Enter si no hay)") or None,
     )
+
+
+def _index(opciones: list[tuple[str, str]], code: str) -> int:
+    return next((i for i, (c, _) in enumerate(opciones) if c == code), 0)
 
 
 def _ask_achievements(draft: WeekDraft, known: set[str]) -> list[Achievement]:
@@ -201,14 +232,17 @@ def _ask_achievements(draft: WeekDraft, known: set[str]) -> list[Achievement]:
             continue
         print(f"\n[{item.project}] {item.title}")
         print(f"  {item.result}")
-        if ask_yes_no("¿Lo incluyo?"):
-            achievements.append(
-                Achievement(
-                    project=item.project,
-                    title=ask("Título", item.title, False),
-                    result=ask("Resultado", item.result, False),
-                )
-            )
+        respuesta = ask_keep("¿Lo incluyo?")
+        if respuesta == "no":
+            continue
+        if respuesta == "editar":
+            title = ask("Título", item.title, False)
+            result = ask("Resultado", item.result, False)
+        else:
+            title, result = item.title, item.result
+        achievements.append(
+            Achievement(project=item.project, title=title, result=result)
+        )
     return achievements
 
 
@@ -265,11 +299,13 @@ def _ask_days(
         )
         if not summary:
             continue
-        sugerido = _default_project(propuesta, day, projects)
+        unico = _only_project(day, projects)
         days.append(
             DayLog(
                 day=day.day,
-                project=ask_project(projects, sugerido),
+                project=unico or ask_project(
+                    projects, _default_project(propuesta, day, projects)
+                ),
                 summary=summary,
                 status=ask_choice("¿Cómo salió?", SEMAFORO),
                 refs=day.refs,
@@ -304,6 +340,16 @@ def _ask_notes() -> list[str]:
         if not nota:
             return notes
         notes.append(nota)
+
+
+def _only_project(day, projects: list[ProjectStatus]) -> str | None:
+    codes = {p.project for p in projects}
+    if len(day.by_project) == 1:
+        unico = next(iter(day.by_project))
+        if unico in codes:
+            print(f"  proyecto: {unico}")
+            return unico
+    return None
 
 
 def _default_project(propuesta, day, projects: list[ProjectStatus]) -> int:

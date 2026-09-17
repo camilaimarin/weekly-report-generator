@@ -47,7 +47,7 @@ def _run(args: argparse.Namespace) -> None:
     metrics = git_metrics(stats, summarize(previous, config.timezone))
 
     draft = VACIO if args.no_llm else _draft(cache, stats, config)
-    report = run_interview(draft, stats, config, metrics)
+    report = run_interview(draft, stats, config, metrics, _last_report(week_start))
     _json_path(week_start).parent.mkdir(parents=True, exist_ok=True)
     _json_path(week_start).write_text(report.model_dump_json(indent=2))
     _save(report)
@@ -74,6 +74,14 @@ def _save(report: Report) -> None:
 
 def _json_path(week_start: date) -> Path:
     return OUTPUT_DIR / f"{week_start:%G-W%V}.json"
+
+
+def _last_report(week_start: date) -> Report | None:
+    path = _json_path(week_start - timedelta(days=7))
+    if not path.exists():
+        return None
+    print(f"Tomando como base tu reporte de {path.stem}.")
+    return Report.model_validate_json(path.read_text())
 
 
 def _parse_args() -> argparse.Namespace:
