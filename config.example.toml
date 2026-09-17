@@ -1,0 +1,21 @@
+# Copia este archivo a config.toml (que está fuera de git) y pon tus datos:
+#   cp config.example.toml config.toml
+
+author = "Tu nombre"
+role = "Ingeniería de datos · Sistemas de IA · Product Owner"
+timezone = "America/Mexico_City"
+
+# Todos los correos con los que haces commits (personal, trabajo...).
+emails = ["tu@correo.com"]
+
+# Archivos generados que no cuentan en las líneas cambiadas.
+ignore_files = ["uv.lock", "package-lock.json", "*.min.js"]
+
+# Un bloque [[repos]] por repositorio, con el código de proyecto del reporte.
+[[repos]]
+path = "~/Src/mi-pipeline"
+project = "PIPE"
+
+[[repos]]
+path = "~/Src/mi-asistente"
+project = "AI"
