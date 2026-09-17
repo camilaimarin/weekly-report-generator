@@ -83,13 +83,12 @@ def git_metrics(current: WeekStats, previous: WeekStats | None = None) -> list[M
         return getattr(previous, field) if previous else None
 
     return [
-        Metric(label="Commits", value=current.commits, unit="commits",
-               previous=before("commits")),
-        Metric(label="Líneas escritas", value=current.lines_added, unit="líneas",
+        Metric(label="Commits", value=current.commits, previous=before("commits")),
+        Metric(label="Líneas escritas", value=current.lines_added,
                previous=before("lines_added")),
-        Metric(label="Archivos tocados", value=current.files_changed, unit="archivos",
+        Metric(label="Archivos tocados", value=current.files_changed,
                previous=before("files_changed")),
-        Metric(label="Días con actividad", value=current.active_days, unit="días",
+        Metric(label="Días con commits", value=current.active_days,
                previous=before("active_days")),
     ]
 

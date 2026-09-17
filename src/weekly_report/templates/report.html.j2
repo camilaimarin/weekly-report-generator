@@ -59,6 +59,12 @@
 <body>
 <div class="page">
 
+{% macro seccion(ns, titulo, pegada=false) -%}
+{% set ns.n = ns.n + 1 -%}
+<h2 class="section"{% if pegada %} style="margin-bottom:6px"{% endif %}>{{ "%02d" | format(ns.n) }} · {{ titulo }}</h2>
+{%- endmacro %}
+{% set ns = namespace(n=0) %}
+
 <div class="topbar">
   <span>Reporte semanal · documento interno</span>
   <span>Preparado por: {{ report.author }}</span>
@@ -86,10 +92,13 @@
   </div>
 </div>
 
-<h2 class="section">01 · Resumen de la semana</h2>
+{% if report.summary %}
+{{ seccion(ns, "Resumen de la semana") }}
 <p style="margin-bottom:26px">{{ report.summary }}</p>
+{% endif %}
 
-<h2 class="section">02 · Estado por proyecto</h2>
+{% if report.projects %}
+{{ seccion(ns, "Estado por proyecto") }}
 <table>
   <thead>
     <tr>
@@ -112,8 +121,10 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
 
-<h2 class="section">03 · Logros</h2>
+{% if report.achievements %}
+{{ seccion(ns, "Logros") }}
 <div style="margin-bottom:26px">
   {% for a in report.achievements %}
   <div class="item">
@@ -125,8 +136,10 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
-<h2 class="section">04 · Obstáculos y bloqueos</h2>
+{% if report.obstacles %}
+{{ seccion(ns, "Obstáculos y bloqueos") }}
 <table>
   <thead>
     <tr>
@@ -147,8 +160,10 @@
     {% endfor %}
   </tbody>
 </table>
+{% endif %}
 
-<h2 class="section" style="margin-bottom:6px">05 · Métricas</h2>
+{% if report.metrics %}
+{{ seccion(ns, "Métricas", true) }}
 <p class="hint">Cambio contra la semana anterior.</p>
 <div class="metrics">
   {% for m in report.metrics %}
@@ -164,15 +179,19 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
-<h2 class="section">06 · En curso y arrastrado</h2>
+{% if report.carry_over %}
+{{ seccion(ns, "En curso y arrastrado") }}
 <ul class="list">
   {% for c in report.carry_over %}
   <li><span class="tag">{{ c.project }}</span><strong style="color:#101828">{{ c.title }}</strong> — {% if c.progress is not none %}{{ c.progress }} %. {% endif %}{{ c.remaining }}</li>
   {% endfor %}
 </ul>
+{% endif %}
 
-<h2 class="section" style="margin-bottom:6px">07 · Trabajo por día</h2>
+{% if report.days %}
+{{ seccion(ns, "Trabajo por día", true) }}
 <p class="hint">Una línea por día. Semáforo: <span style="color:{{ status_color('cumplido') }};font-weight:600">verde</span> cumplido · <span style="color:{{ status_color('parcial') }};font-weight:600">ámbar</span> parcial · <span style="color:{{ status_color('bloqueado') }};font-weight:600">rojo</span> no avanzó.</p>
 <div class="box">
   {% for d in report.days %}
@@ -183,9 +202,11 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
+{% if report.plan %}
 {% set dias = plan_days(report) %}
-<h2 class="section" style="margin-bottom:6px">08 · Cronograma de la próxima semana</h2>
+{{ seccion(ns, "Cronograma de la próxima semana", true) }}
 <p class="hint">Semana {{ report.next_week_number }} · {{ format_week_range(dias[0], dias[-1]) }}</p>
 <div class="gantt">
   <div class="head" style="display:grid;grid-template-columns:210px repeat({{ dias | length }},1fr)">
@@ -210,13 +231,16 @@
     {% endfor %}
   </div>
 </div>
+{% endif %}
 
-<h2 class="section">09 · Notas y aprendizajes</h2>
+{% if report.notes %}
+{{ seccion(ns, "Notas y aprendizajes") }}
 <ul class="list">
   {% for note in report.notes %}
   <li>{{ note }}</li>
   {% endfor %}
 </ul>
+{% endif %}
 
 </div>
 </body>
