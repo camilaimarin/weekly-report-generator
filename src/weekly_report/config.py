@@ -25,6 +25,7 @@ class Config(BaseModel):
     author: str
     role: str = ""
     timezone: ZoneInfo = ZoneInfo("America/Mexico_City")
+    model: str = "qwen3:4b"
     emails: list[str] = Field(min_length=1)
     ignore_files: list[str] = []
     repos: list[RepoConfig] = []

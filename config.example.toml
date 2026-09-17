@@ -5,6 +5,9 @@ author = "Tu nombre"
 role = "Ingeniería de datos · Sistemas de IA · Product Owner"
 timezone = "America/Mexico_City"
 
+# Modelo de Ollama que redacta los textos. Los números nunca salen de aquí.
+model = "qwen3:4b"
+
 # Todos los correos con los que haces commits (personal, trabajo...).
 emails = ["tu@correo.com"]
 
