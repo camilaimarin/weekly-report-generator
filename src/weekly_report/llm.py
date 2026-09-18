@@ -17,7 +17,7 @@ Reglas:
 - Escribes en español de México, claro y directo, sin adjetivos de relleno.
 - Solo puedes usar los hechos que te doy. Si algo no está en los commits, no existe.
 - No inventes números, porcentajes ni fechas: los números ya están calculados aparte.
-- Usa los códigos de proyecto tal como aparecen (PIPE, AI...), nunca otros.
+- Usa los códigos de proyecto tal como aparecen en la lista, nunca otros.
 - Describe resultados para alguien que no lee código, no nombres de archivos."""
 
 INSTRUCCIONES = """\

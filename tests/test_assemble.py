@@ -167,13 +167,13 @@ def test_el_arrastre_de_un_proyecto_que_no_existe_no_entra(semana):
 def test_el_hito_lo_redacta_el_modelo(semana):
     stats = summarize(semana, TZ)
     con_hitos = draft(projects=[
-        ProjectDraft(project="PIPE", milestone="v1.5.4 publicada",
+        ProjectDraft(project="PIPE", milestone="v2.1.0 publicada",
                      next_milestone="Pruebas E2E"),
     ])
 
     pipe = assemble_report(con_hitos, stats, config(), []).projects[0]
 
-    assert pipe.milestone == "v1.5.4 publicada"
+    assert pipe.milestone == "v2.1.0 publicada"
     assert pipe.next_milestone == "Pruebas E2E"
 
 

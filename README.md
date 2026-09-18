@@ -170,3 +170,7 @@ src/weekly_report/
 ## Estado
 
 Proyecto personal, en construcción. La única fuente implementada es git.
+
+## Licencia
+
+MIT. Ver [LICENSE](LICENSE).
