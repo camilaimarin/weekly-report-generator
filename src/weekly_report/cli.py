@@ -57,7 +57,9 @@ def _run(args: argparse.Namespace) -> None:
     previous = _last_report(week_start)
 
     path = _json_path(week_start)
-    capturado = _existing(path)
+    if args.rearmar:
+        _backup(path)
+    capturado = None if args.rearmar else _existing(path)
 
     if args.entrevista:
         report = run_interview(draft, stats, config, metrics, previous)
@@ -81,7 +83,15 @@ def _existing(path: Path) -> Report | None:
     if not path.exists():
         return None
     print(f"Ya tenías capturada esta semana: se conserva {path}.")
+    print("Usa --rearmar para volver a armarla con lo último de git.")
     return Report.model_validate_json(path.read_text())
+
+
+def _backup(path: Path) -> None:
+    if path.exists():
+        anterior = path.with_suffix(".anterior.json")
+        path.replace(anterior)
+        print(f"Tu versión anterior quedó en {anterior}.")
 
 
 def _edit(path: Path) -> Report:
@@ -145,6 +155,11 @@ def _parse_args() -> argparse.Namespace:
         "--refresh",
         action="store_true",
         help="Vuelve a leer git aunque ya haya caché de esa semana.",
+    )
+    parser.add_argument(
+        "--rearmar",
+        action="store_true",
+        help="Rearma el reporte con lo último de git; guarda una copia del anterior.",
     )
     parser.add_argument(
         "--entrevista",

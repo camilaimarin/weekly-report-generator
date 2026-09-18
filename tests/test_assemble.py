@@ -1,6 +1,6 @@
 from datetime import date
 
-from factories import TZ
+from factories import TZ, activity, cache_with
 
 from weekly_report.aggregate import summarize
 from weekly_report.assemble import assemble_report
@@ -104,3 +104,19 @@ def test_las_metricas_llegan_tal_cual(semana):
     report = assemble_report(draft(), stats, config(), metrics)
 
     assert report.metrics == metrics
+
+
+def test_rearmar_incorpora_los_dias_nuevos(semana):
+    stats = summarize(semana, TZ)
+    con_viernes = cache_with(*semana.activities, activity(day=18, ref="a4"))
+    stats_viernes = summarize(con_viernes, TZ)
+    nuevo_draft = draft(days=[
+        DayDraft(day=LUNES, project="PIPE", summary="Lo del lunes"),
+        DayDraft(day=date(2026, 9, 18), project="PIPE", summary="Lo del viernes"),
+    ])
+
+    antes = assemble_report(draft(), stats, config(), [])
+    despues = assemble_report(nuevo_draft, stats_viernes, config(), [])
+
+    assert len(antes.days) == 1
+    assert [d.day.day for d in despues.days] == [14, 18]
