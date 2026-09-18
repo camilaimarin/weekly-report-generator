@@ -75,6 +75,32 @@ class GitLocalSource(Source):
         return result.stdout
 
 
+def read_tags(repo_path: Path, start: datetime, end: datetime) -> list[str]:
+    result = subprocess.run(
+        [
+            "git", "-C", str(Path(repo_path).expanduser()),
+            "for-each-ref",
+            "--sort=creatordate",
+            "--format=%(creatordate:iso-strict)\t%(refname:short)",
+            "refs/tags",
+        ],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+    if result.returncode != 0:
+        return []
+
+    tags = []
+    for line in result.stdout.splitlines():
+        fecha, _, tag = line.partition("\t")
+        try:
+            creado = datetime.fromisoformat(fecha)
+        except ValueError:
+            continue
+        if start <= creado < end:
+            tags.append(tag)
+    return tags
+
+
 def _parse_numstat(block: str, ignore_files: list[str]) -> dict[str, int]:
     added = deleted = files = 0
     for line in block.strip().splitlines():

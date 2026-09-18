@@ -56,3 +56,52 @@ def test_un_commit_que_solo_toca_lo_ignorado_sigue_existiendo():
     stats = _parse_numstat("5000\t0\tuv.lock", ["uv.lock"])
 
     assert stats == {"lines_added": 0, "lines_deleted": 0, "files_changed": 0}
+
+
+def test_solo_cuentan_los_tags_creados_dentro_de_la_semana(tmp_path):
+    import subprocess
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from weekly_report.sources.git_local import read_tags
+
+    tz = ZoneInfo("America/Mexico_City")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env = {
+        "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+        "GIT_COMMITTER_DATE": "2026-09-15T12:00:00-06:00",
+        "PATH": "/usr/bin:/bin:/usr/local/bin",
+    }
+
+    def git(*args, **extra):
+        subprocess.run(["git", "-C", str(repo), *args], env={**env, **extra},
+                       check=True, capture_output=True)
+
+    git("init", "-q")
+    (repo / "a.txt").write_text("hola")
+    git("add", "a.txt")
+    git("commit", "-m", "uno", GIT_AUTHOR_DATE="2026-09-15T12:00:00-06:00")
+    git("tag", "-a", "v1.0.0", "-m", "de esta semana",
+        GIT_COMMITTER_DATE="2026-09-15T12:00:00-06:00")
+    git("tag", "-a", "v0.9.0", "-m", "vieja",
+        GIT_COMMITTER_DATE="2026-08-01T12:00:00-06:00")
+
+    start = datetime(2026, 9, 14, tzinfo=tz)
+    end = datetime(2026, 9, 21, tzinfo=tz)
+
+    assert read_tags(repo, start, end) == ["v1.0.0"]
+
+
+def test_un_repo_sin_tags_no_truena(tmp_path):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from weekly_report.sources.git_local import read_tags
+
+    tz = ZoneInfo("America/Mexico_City")
+    vacio = read_tags(tmp_path, datetime(2026, 9, 14, tzinfo=tz),
+                      datetime(2026, 9, 21, tzinfo=tz))
+
+    assert vacio == []

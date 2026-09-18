@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 from weekly_report.aggregate import WeekStats
 from weekly_report.config import Config
-from weekly_report.llm import PlanDraft, WeekDraft
+from weekly_report.llm import PlanDraft, ProjectDraft, WeekDraft
 from weekly_report.models import (
     Achievement, CarryOver, DayLog, Metric, PlannedActivity, ProjectStatus, Report,
 )
@@ -18,8 +18,9 @@ def assemble_report(
     previous: Report | None = None,
 ) -> Report:
     anteriores = {p.project: p for p in previous.projects} if previous else {}
+    hitos = {p.project: p for p in draft.projects}
     projects = [
-        _project(item.project, anteriores.get(item.project))
+        _project(item.project, anteriores.get(item.project), hitos.get(item.project))
         for item in stats.by_project
     ]
     known = {p.project for p in projects}
@@ -82,15 +83,15 @@ def _plan(
     return plan
 
 
-def _project(code: str, antes: ProjectStatus | None) -> ProjectStatus:
-    if antes is None:
-        return ProjectStatus(
-            project=code, name=code, status="en_curso", progress=0, milestone=""
-        )
+def _project(
+    code: str, antes: ProjectStatus | None, hito: ProjectDraft | None
+) -> ProjectStatus:
+    heredado = antes.next_milestone if antes else ""
     return ProjectStatus(
         project=code,
-        name=antes.name,
-        status=antes.status,
-        progress=antes.progress,
-        milestone=antes.next_milestone or "",
+        name=antes.name if antes else code,
+        status=antes.status if antes else "en_curso",
+        progress=antes.progress if antes else 0,
+        milestone=(hito.milestone if hito else "") or heredado or "",
+        next_milestone=(hito.next_milestone if hito else None) or None,
     )

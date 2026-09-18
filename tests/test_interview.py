@@ -95,6 +95,7 @@ def test_la_entrevista_arma_un_reporte_valido(responde, config, semana):
         focus="Clústeres",
         focus_context="Contexto.",
         summary="Resumen del modelo.",
+        projects=[],
         achievements=[AchievementDraft(project="PIPE", title="Logro", result="R")],
         days=[DayDraft(day=LUNES, project="PIPE", summary="Lo del lunes")],
     )
@@ -126,7 +127,7 @@ def test_la_entrevista_arma_un_reporte_valido(responde, config, semana):
 def test_un_logro_se_puede_editar_sin_reescribir_los_demas(responde, config, semana):
     stats = summarize(semana, TZ)
     draft = WeekDraft(
-        focus="x", focus_context="x", summary="x",
+        focus="x", focus_context="x", summary="x", projects=[],
         achievements=[AchievementDraft(project="PIPE", title="Feo", result="R")],
         days=[],
     )
@@ -159,8 +160,8 @@ def test_lo_de_la_semana_pasada_se_propone(responde, config, semana):
                           next_milestone="Pruebas E2E"),
         ],
     )
-    draft = WeekDraft(focus="x", focus_context="x", summary="x", achievements=[],
-                      days=[])
+    draft = WeekDraft(focus="x", focus_context="x", summary="x", projects=[],
+                      achievements=[], days=[])
     responde(
         "1", "0", "0", "", "", "",
         "", "", "", "",                       # PIPE: no pregunta el nombre
@@ -182,7 +183,7 @@ def test_lo_de_la_semana_pasada_se_propone(responde, config, semana):
 def test_un_logro_de_un_proyecto_que_no_capturaste_se_omite(responde, config, semana):
     stats = summarize(semana, TZ)
     draft = WeekDraft(
-        focus="x", focus_context="x", summary="x",
+        focus="x", focus_context="x", summary="x", projects=[],
         achievements=[AchievementDraft(project="FANTASMA", title="t", result="r")],
         days=[],
     )
@@ -206,7 +207,7 @@ def test_un_dia_sin_commits_no_hereda_el_texto_del_modelo(responde, config, sema
     stats = summarize(semana, TZ)
     miercoles = date(2026, 9, 16)
     draft = WeekDraft(
-        focus="x", focus_context="x", summary="x", achievements=[],
+        focus="x", focus_context="x", summary="x", projects=[], achievements=[],
         days=[DayDraft(day=miercoles, project="PIPE", summary="Sin commits")],
     )
     responde(

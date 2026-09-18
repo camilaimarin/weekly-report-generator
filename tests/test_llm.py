@@ -17,6 +17,7 @@ def draft(**cambios) -> WeekDraft:
         focus="Clústeres",
         focus_context="Separación de clústeres.",
         summary="Arreglamos la sincronización.",
+        projects=[],
         achievements=[AchievementDraft(project="PIPE", title="t", result="r")],
         days=[
             DayDraft(day=LUNES, project="PIPE", summary="s"),
@@ -31,7 +32,7 @@ def test_el_modelo_no_tiene_donde_escribir_una_metrica():
 
     assert sorted(campos) == [
         "achievements", "carry_over", "days", "focus", "focus_context", "plan",
-        "summary",
+        "projects", "summary",
     ]
     assert all(
         campo not in campos

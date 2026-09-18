@@ -9,15 +9,18 @@ from pydantic import ValidationError
 
 from weekly_report.aggregate import git_metrics, summarize
 from weekly_report.assemble import assemble_report
-from weekly_report.cache import get_week, monday_of
+from weekly_report.cache import get_week, monday_of, week_range
 from weekly_report.config import Config, build_sources, load_config
 from weekly_report.interview import review_report, run_interview
 from weekly_report.llm import WeekDraft, draft_week, review_draft
 from weekly_report.models import Report
 from weekly_report.pdf import save_pdf
 from weekly_report.render import OUTPUT_DIR, render_report, save_report
+from weekly_report.sources.git_local import read_tags
 
-VACIO = WeekDraft(focus="", focus_context="", summary="", achievements=[], days=[])
+VACIO = WeekDraft(
+    focus="", focus_context="", summary="", projects=[], achievements=[], days=[]
+)
 
 
 def main() -> None:
@@ -53,7 +56,7 @@ def _run(args: argparse.Namespace) -> None:
     previous = get_week(sources, week_start - timedelta(days=7), config.timezone)
     metrics = git_metrics(stats, summarize(previous, config.timezone))
 
-    draft = VACIO if args.no_llm else _draft(cache, stats, config)
+    draft = VACIO if args.no_llm else _draft(cache, stats, config, week_start)
     previous = _last_report(week_start)
 
     path = _json_path(week_start)
@@ -111,10 +114,19 @@ def _edit(path: Path) -> Report:
         )
 
 
-def _draft(cache, stats, config: Config) -> WeekDraft:
+def _draft(cache, stats, config: Config, week_start: date) -> WeekDraft:
+    start, end = week_range(week_start, config.timezone)
+    releases = {
+        repo.project: read_tags(repo.path, start, end) for repo in config.repos
+    }
+    publicadas = sorted(t for tags in releases.values() for t in tags)
+    if publicadas:
+        print(f"Versiones publicadas esta semana: {', '.join(publicadas)}.")
     print(f"Pidiéndole el borrador a {config.model}...")
     try:
-        draft = draft_week(cache, stats, config.author, config.role, config.model)
+        draft = draft_week(
+            cache, stats, config.author, config.role, config.model, releases
+        )
     except Exception as error:
         raise SystemExit(
             f"\nNo se pudo usar Ollama ({error}).\n"

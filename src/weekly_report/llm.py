@@ -25,6 +25,10 @@ Escribe, en JSON:
 - focus: el tema que dominó la semana, en menos de 6 palabras.
 - focus_context: una línea que explique ese foco.
 - summary: 3 o 4 frases sobre qué avanzó y qué quedó pendiente.
+- projects: uno por cada proyecto de la lista de arriba. milestone es lo más
+  importante que quedó listo esta semana en ese proyecto, en una línea; si
+  publicaste una versión, el hito es esa versión. next_milestone es lo que
+  sigue, también en una línea.
 - achievements: máximo 4 logros, del más importante al menos. Cada uno con el
   código de proyecto, un título corto y el resultado concreto.
 - days: una línea por cada día CON commits, con su fecha (AAAA-MM-DD), el
@@ -64,17 +68,26 @@ class PlanDraft(BaseModel):
     weekdays: list[int] = Field(min_length=1)
 
 
+class ProjectDraft(BaseModel):
+    project: str
+    milestone: str
+    next_milestone: str
+
+
 class WeekDraft(BaseModel):
     focus: str
     focus_context: str
     summary: str
+    projects: list[ProjectDraft]
     achievements: list[AchievementDraft] = Field(max_length=4)
     days: list[DayDraft]
     carry_over: list[CarryDraft] = Field(default=[], max_length=4)
     plan: list[PlanDraft] = Field(default=[], max_length=6)
 
 
-def build_prompt(cache: WeekCache, stats: WeekStats) -> str:
+def build_prompt(
+    cache: WeekCache, stats: WeekStats, releases: dict[str, list[str]] | None = None
+) -> str:
     por_proyecto = ", ".join(
         f"{p.project} {p.commits}" for p in stats.by_project
     )
@@ -84,6 +97,14 @@ def build_prompt(cache: WeekCache, stats: WeekStats) -> str:
         "",
         "Commits de la semana:",
     ]
+    publicadas = [
+        f"{project}: {', '.join(tags)}"
+        for project, tags in sorted((releases or {}).items())
+        if tags
+    ]
+    if publicadas:
+        partes.insert(2, f"Versiones publicadas esta semana: {'; '.join(publicadas)}.")
+
     actividades = {activity.ref: activity for activity in cache.activities}
     for day in stats.by_day:
         if not day.commits:
@@ -113,12 +134,13 @@ def draft_week(
     author: str,
     role: str,
     model: str,
+    releases: dict[str, list[str]] | None = None,
 ) -> WeekDraft:
     response = ollama.chat(
         model=model,
         messages=[
             {"role": "system", "content": SISTEMA.format(author=author, role=role)},
-            {"role": "user", "content": build_prompt(cache, stats)},
+            {"role": "user", "content": build_prompt(cache, stats, releases)},
         ],
         format=WeekDraft.model_json_schema(),
         think=False,

@@ -6,7 +6,7 @@ from weekly_report.aggregate import summarize
 from weekly_report.assemble import assemble_report
 from weekly_report.config import Config
 from weekly_report.llm import (
-    AchievementDraft, CarryDraft, DayDraft, PlanDraft, WeekDraft,
+    AchievementDraft, CarryDraft, DayDraft, PlanDraft, ProjectDraft, WeekDraft,
 )
 from weekly_report.models import Metric, ProjectStatus, Report
 
@@ -24,6 +24,7 @@ def draft(**cambios) -> WeekDraft:
         focus="Clústeres",
         focus_context="Contexto.",
         summary="Resumen del modelo.",
+        projects=[],
         achievements=[AchievementDraft(project="PIPE", title="Logro", result="R")],
         days=[DayDraft(day=LUNES, project="PIPE", summary="Lo del lunes")],
     )
@@ -161,3 +162,31 @@ def test_el_arrastre_de_un_proyecto_que_no_existe_no_entra(semana):
     carry = assemble_report(con_basura, stats, config(), []).carry_over
 
     assert [c.title for c in carry] == ["Real"]
+
+
+def test_el_hito_lo_redacta_el_modelo(semana):
+    stats = summarize(semana, TZ)
+    con_hitos = draft(projects=[
+        ProjectDraft(project="PIPE", milestone="v1.5.4 publicada",
+                     next_milestone="Pruebas E2E"),
+    ])
+
+    pipe = assemble_report(con_hitos, stats, config(), []).projects[0]
+
+    assert pipe.milestone == "v1.5.4 publicada"
+    assert pipe.next_milestone == "Pruebas E2E"
+
+
+def test_sin_hito_del_modelo_se_usa_el_que_quedo_pendiente(semana):
+    stats = summarize(semana, TZ)
+    anterior = Report(
+        author="Camila", week_start=date(2026, 9, 7), overall_status="en_curso",
+        goals_done=0, goals_total=0, focus="x", summary="x",
+        projects=[ProjectStatus(project="PIPE", name="Ingesta", status="en_curso",
+                                progress=50, milestone="Viejo",
+                                next_milestone="Lo prometido")],
+    )
+
+    pipe = assemble_report(draft(), stats, config(), [], anterior).projects[0]
+
+    assert pipe.milestone == "Lo prometido"
