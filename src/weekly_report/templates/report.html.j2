@@ -121,7 +121,7 @@
     <tr>
       <td style="font-weight:600">{{ p.project }}{% if p.name and p.name != p.project %} · {{ p.name }}{% endif %}</td>
       <td><span class="status" style="color:{{ status_color(p.status) }}"><span class="dot" style="background:{{ status_color(p.status) }}"></span>{{ status_label(p.status) }}</span></td>
-      <td style="font-family:'IBM Plex Mono',monospace">{{ p.progress }} %</td>
+      <td style="font-family:'IBM Plex Mono',monospace">{% if p.progress is not none %}{{ p.progress }} %{% else %}—{% endif %}</td>
       <td>{{ p.milestone or "—" }}</td>
       <td>{{ p.next_milestone or "—" }}</td>
     </tr>

@@ -184,6 +184,17 @@ def run_interview(
     )
 
 
+def ask_missing_progress(report: Report) -> Report:
+    faltan = [p for p in report.projects if p.progress is None]
+    if not faltan:
+        return report
+
+    print(f"\nFalta el avance de {len(faltan)} proyecto(s). Enter lo deja en blanco.")
+    for project in faltan:
+        project.progress = ask_percent(f"Avance de {project.project}")
+    return report
+
+
 def review_report(report: Report) -> list[str]:
     avisos = []
     if report.overall_status == "bloqueado" and not report.active_blockers:

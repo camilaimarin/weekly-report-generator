@@ -91,7 +91,7 @@ def _project(
         project=code,
         name=antes.name if antes else code,
         status=antes.status if antes else "en_curso",
-        progress=antes.progress if antes else 0,
+        progress=antes.progress if antes else None,
         milestone=(hito.milestone if hito else "") or heredado or "",
         next_milestone=(hito.next_milestone if hito else None) or None,
     )

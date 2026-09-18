@@ -19,7 +19,7 @@ class ProjectStatus(BaseModel):
     project: str
     name: str
     status: Literal["en_curso", "en_riesgo", "detenido", "completado"]
-    progress: int = Field(ge=0, le=100)
+    progress: int | None = Field(default=None, ge=0, le=100)
     milestone: str
     next_milestone: str | None = None
 

@@ -11,7 +11,9 @@ from weekly_report.aggregate import git_metrics, summarize
 from weekly_report.assemble import assemble_report
 from weekly_report.cache import get_week, monday_of, week_range
 from weekly_report.config import Config, build_sources, load_config
-from weekly_report.interview import review_report, run_interview
+from weekly_report.interview import (
+    ask_missing_progress, review_report, run_interview,
+)
 from weekly_report.llm import WeekDraft, draft_week, review_draft
 from weekly_report.models import Report
 from weekly_report.pdf import save_pdf
@@ -60,6 +62,7 @@ def _run(args: argparse.Namespace) -> None:
     previous = _last_report(week_start)
 
     path = _json_path(week_start)
+    tuyo = _read(path)
     if args.rearmar:
         _backup(path)
     capturado = None if args.rearmar else _existing(path)
@@ -69,7 +72,12 @@ def _run(args: argparse.Namespace) -> None:
     elif capturado:
         report = capturado.model_copy(update={"metrics": metrics})
     else:
-        report = assemble_report(draft, stats, config, metrics, previous)
+        report = assemble_report(draft, stats, config, metrics, tuyo or previous)
+        if tuyo:
+            report = _keep_yours(report, tuyo)
+
+    if not args.entrevista:
+        report = ask_missing_progress(report)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(report.model_dump_json(indent=2))
@@ -80,6 +88,23 @@ def _run(args: argparse.Namespace) -> None:
     for aviso in review_report(report):
         print(f"  ojo: {aviso}")
     _save(report, args.pdf)
+
+
+def _read(path: Path) -> Report | None:
+    if not path.exists():
+        return None
+    return Report.model_validate_json(path.read_text())
+
+
+def _keep_yours(nuevo: Report, tuyo: Report) -> Report:
+    known = {p.project for p in nuevo.projects}
+    return nuevo.model_copy(update={
+        "overall_status": tuyo.overall_status,
+        "goals_done": tuyo.goals_done,
+        "goals_total": tuyo.goals_total,
+        "obstacles": [o for o in tuyo.obstacles if o.project in known],
+        "notes": tuyo.notes,
+    })
 
 
 def _existing(path: Path) -> Report | None:

@@ -79,7 +79,7 @@ def test_los_proyectos_heredan_lo_de_la_semana_pasada(semana):
     assert pipe.name == "Ingesta v2"
     assert (pipe.status, pipe.progress) == ("en_riesgo", 60)
     assert pipe.milestone == "Pruebas E2E"
-    assert (ai.name, ai.progress) == ("AI", 0)
+    assert (ai.name, ai.progress) == ("AI", None)
 
 
 def test_un_logro_de_un_proyecto_que_no_existe_no_entra(semana):

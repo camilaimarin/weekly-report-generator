@@ -6,7 +6,8 @@ from factories import TZ
 from weekly_report.aggregate import summarize
 from weekly_report.config import Config
 from weekly_report.interview import (
-    ask, ask_int, ask_percent, ask_weekdays, ask_yes_no, review_report, run_interview,
+    ask, ask_int, ask_missing_progress, ask_percent, ask_weekdays, ask_yes_no,
+    review_report, run_interview,
 )
 from weekly_report.llm import AchievementDraft, DayDraft, WeekDraft
 from weekly_report.models import ProjectStatus, Report
@@ -262,3 +263,33 @@ def test_un_reporte_coherente_no_genera_avisos():
     )
 
     assert review_report(report) == []
+
+
+def test_solo_pregunta_el_avance_de_los_proyectos_que_no_lo_tienen(responde):
+    report = Report(
+        author="Camila", week_start=LUNES, overall_status="en_curso",
+        goals_done=0, goals_total=0, focus="x", summary="x",
+        projects=[
+            ProjectStatus(project="PIPE", name="Ingesta", status="en_curso",
+                          progress=60, milestone="Hito"),
+            ProjectStatus(project="AI", name="Panel", status="en_curso",
+                          milestone="Hito"),
+        ],
+    )
+    responde("40")
+
+    completo = ask_missing_progress(report)
+
+    assert [p.progress for p in completo.projects] == [60, 40]
+
+
+def test_el_avance_se_puede_dejar_en_blanco(responde):
+    report = Report(
+        author="Camila", week_start=LUNES, overall_status="en_curso",
+        goals_done=0, goals_total=0, focus="x", summary="x",
+        projects=[ProjectStatus(project="PIPE", name="Ingesta",
+                                status="en_curso", milestone="Hito")],
+    )
+    responde("")
+
+    assert ask_missing_progress(report).projects[0].progress is None
