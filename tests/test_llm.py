@@ -26,13 +26,23 @@ def draft(**cambios) -> WeekDraft:
     return WeekDraft(**(base | cambios))
 
 
-def test_el_modelo_no_tiene_donde_escribir_un_numero():
+def test_el_modelo_no_tiene_donde_escribir_una_metrica():
     campos = WeekDraft.model_json_schema()["properties"]
 
     assert sorted(campos) == [
-        "achievements", "days", "focus", "focus_context", "summary",
+        "achievements", "carry_over", "days", "focus", "focus_context", "plan",
+        "summary",
     ]
-    assert all(campo not in campos for campo in ("metrics", "commits", "progress"))
+    assert all(
+        campo not in campos
+        for campo in ("metrics", "commits", "progress", "goals_done", "lines_added")
+    )
+
+
+def test_lo_unico_numerico_que_puede_escribir_son_dias_de_la_semana():
+    plan = WeekDraft.model_json_schema()["$defs"]["PlanDraft"]["properties"]
+
+    assert sorted(plan) == ["kind", "project", "title", "weekdays"]
 
 
 def test_el_prompt_lleva_los_commits_agrupados_por_dia(tz, semana):

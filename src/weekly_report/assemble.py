@@ -1,9 +1,13 @@
+from datetime import date, timedelta
+
 from weekly_report.aggregate import WeekStats
 from weekly_report.config import Config
-from weekly_report.llm import WeekDraft
+from weekly_report.llm import PlanDraft, WeekDraft
 from weekly_report.models import (
-    Achievement, DayLog, Metric, ProjectStatus, Report,
+    Achievement, CarryOver, DayLog, Metric, PlannedActivity, ProjectStatus, Report,
 )
+
+DIAS_HABILES = 5
 
 
 def assemble_report(
@@ -39,6 +43,11 @@ def assemble_report(
             if a.project in known
         ],
         metrics=metrics,
+        carry_over=[
+            CarryOver(project=c.project, title=c.title, remaining=c.remaining)
+            for c in draft.carry_over
+            if c.project in known
+        ],
         days=[
             DayLog(
                 day=d.day,
@@ -50,7 +59,27 @@ def assemble_report(
             for d in draft.days
             if d.project in known and d.day in con_commits
         ],
+        plan=_plan(draft.plan, known, stats.week_start + timedelta(days=7)),
     )
+
+
+def _plan(
+    propuestas: list[PlanDraft], known: set[str], next_week_start: date
+) -> list[PlannedActivity]:
+    plan = []
+    for item in propuestas:
+        dias = sorted({d for d in item.weekdays if 1 <= d <= DIAS_HABILES})
+        if item.project not in known or not dias:
+            continue
+        plan.append(
+            PlannedActivity(
+                project=item.project,
+                title=item.title,
+                kind=item.kind,
+                days=[next_week_start + timedelta(days=d - 1) for d in dias],
+            )
+        )
+    return plan
 
 
 def _project(code: str, antes: ProjectStatus | None) -> ProjectStatus:

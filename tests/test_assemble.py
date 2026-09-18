@@ -5,7 +5,9 @@ from factories import TZ, activity, cache_with
 from weekly_report.aggregate import summarize
 from weekly_report.assemble import assemble_report
 from weekly_report.config import Config
-from weekly_report.llm import AchievementDraft, DayDraft, WeekDraft
+from weekly_report.llm import (
+    AchievementDraft, CarryDraft, DayDraft, PlanDraft, WeekDraft,
+)
 from weekly_report.models import Metric, ProjectStatus, Report
 
 LUNES = date(2026, 9, 14)
@@ -120,3 +122,42 @@ def test_rearmar_incorpora_los_dias_nuevos(semana):
 
     assert len(antes.days) == 1
     assert [d.day.day for d in despues.days] == [14, 18]
+
+
+def test_el_plan_se_convierte_a_fechas_reales(semana):
+    stats = summarize(semana, TZ)
+    con_plan = draft(plan=[
+        PlanDraft(project="PIPE", title="Pruebas E2E", kind="critico",
+                  weekdays=[1, 2]),
+    ])
+
+    plan = assemble_report(con_plan, stats, config(), []).plan[0]
+
+    assert plan.days == [date(2026, 9, 21), date(2026, 9, 22)]
+
+
+def test_un_dia_de_la_semana_imposible_se_descarta(semana):
+    stats = summarize(semana, TZ)
+    con_basura = draft(plan=[
+        PlanDraft(project="PIPE", title="Válida", kind="critico",
+                  weekdays=[0, 3, 99]),
+        PlanDraft(project="PIPE", title="Toda mal", kind="critico",
+                  weekdays=[0, 42]),
+    ])
+
+    plan = assemble_report(con_basura, stats, config(), []).plan
+
+    assert [p.title for p in plan] == ["Válida"]
+    assert plan[0].days == [date(2026, 9, 23)]
+
+
+def test_el_arrastre_de_un_proyecto_que_no_existe_no_entra(semana):
+    stats = summarize(semana, TZ)
+    con_basura = draft(carry_over=[
+        CarryDraft(project="FANTASMA", title="t", remaining="r"),
+        CarryDraft(project="PIPE", title="Real", remaining="falta"),
+    ])
+
+    carry = assemble_report(con_basura, stats, config(), []).carry_over
+
+    assert [c.title for c in carry] == ["Real"]

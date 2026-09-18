@@ -1,5 +1,6 @@
 import re
 from datetime import date
+from typing import Literal
 
 import ollama
 from pydantic import BaseModel, Field
@@ -28,7 +29,14 @@ Escribe, en JSON:
   código de proyecto, un título corto y el resultado concreto.
 - days: una línea por cada día CON commits, con su fecha (AAAA-MM-DD), el
   código del proyecto principal de ese día y qué se hizo. Los días sin
-  commits no se redactan: se omiten."""
+  commits no se redactan: se omiten.
+- carry_over: hasta 4 cosas que se ven empezadas pero no terminadas en los
+  commits, con qué falta para cerrarlas.
+- plan: de 3 a 5 actividades para la próxima semana, que salgan de lo que
+  quedó a medias. Cada una con su proyecto, un título corto, el tipo
+  (critico si es un compromiso, planificado si es trabajo normal, producto
+  si es una ceremonia o revisión) y weekdays: en qué días de la semana
+  correría, como números del 1 al 5 donde 1 es lunes. Nunca escribas fechas."""
 
 
 class AchievementDraft(BaseModel):
@@ -43,12 +51,27 @@ class DayDraft(BaseModel):
     summary: str
 
 
+class CarryDraft(BaseModel):
+    project: str
+    title: str
+    remaining: str
+
+
+class PlanDraft(BaseModel):
+    project: str
+    title: str
+    kind: Literal["critico", "planificado", "producto"]
+    weekdays: list[int] = Field(min_length=1)
+
+
 class WeekDraft(BaseModel):
     focus: str
     focus_context: str
     summary: str
     achievements: list[AchievementDraft] = Field(max_length=4)
     days: list[DayDraft]
+    carry_over: list[CarryDraft] = Field(default=[], max_length=4)
+    plan: list[PlanDraft] = Field(default=[], max_length=6)
 
 
 def build_prompt(cache: WeekCache, stats: WeekStats) -> str:
@@ -73,7 +96,14 @@ def build_prompt(cache: WeekCache, stats: WeekStats) -> str:
         extra = day.commits - MAX_COMMITS_POR_DIA
         if extra > 0:
             partes.append(f"  (y {extra} commits más)")
-    partes += ["", INSTRUCCIONES]
+    con_commits = [f"{day.day}" for day in stats.by_day if day.commits]
+    partes += [
+        "",
+        INSTRUCCIONES,
+        "",
+        f"En days tienen que estar exactamente estos {len(con_commits)} días, "
+        f"ni uno más ni uno menos: {', '.join(con_commits)}.",
+    ]
     return "\n".join(partes)
 
 

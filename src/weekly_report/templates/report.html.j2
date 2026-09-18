@@ -85,7 +85,7 @@
   <div class="card" style="border-top:3px solid #7B2233">
     <div class="label">Estado general</div>
     <div class="value" style="color:{{ status_color(report.overall_status) }}">{{ status_label(report.overall_status) }}</div>
-    <div class="sub">{{ report.goals_done }} de {{ report.goals_total }} objetivos de la semana cerrados</div>
+    <div class="sub">{% if report.goals_total %}{{ report.goals_done }} de {{ report.goals_total }} objetivos de la semana cerrados{% else %}Sin objetivos capturados{% endif %}</div>
   </div>
   <div class="card" style="border-top:3px solid #7B2233">
     <div class="label">Foco de la semana</div>
